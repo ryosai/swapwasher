@@ -1,6 +1,34 @@
 import requests
 import os
+import pandas as pd
 from datetime import datetime
+
+def log_data(ratio):
+    try:
+        # Load existing data
+        df = pd.read_csv('pool_history.csv')
+    except FileNotFoundError:
+        # Create new file if it doesn't exist
+        df = pd.DataFrame(columns=['timestamp', 'ratio'])
+    
+    # Add new entry
+    new_entry = {'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'ratio': ratio}
+    df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+    
+    # Keep only the last 7 days of data (optional)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df = df[df['timestamp'] > (datetime.now() - pd.Timedelta(days=7))]
+    
+    # Save back to CSV
+    df.to_csv('pool_history.csv', index=False)
+
+# Call this inside __main__ after getting the ratio
+if __name__ == "__main__":
+    ratio = get_pool_stats()
+    if ratio is not None:
+        log_data(ratio)  # <-- Add this line
+        if ratio < 0.95 or ratio > 1.05:
+            send_telegram_alert(ratio)
 
 # Telegram notification function
 def send_telegram_alert(ratio):
